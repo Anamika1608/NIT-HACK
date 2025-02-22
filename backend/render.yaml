@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: pdf-generator
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 18.x
+    healthCheckPath: /health
+    plan: standard
+    disk:
+      name: tmp
+      mountPath: /tmp
+      sizeGB: 1
