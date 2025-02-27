@@ -192,12 +192,15 @@ const HomePage = () => {
 
             <div className="plasmo-bg-gray-800 plasmo-rounded-lg plasmo-p-4 plasmo-mb-6">
               <div className="plasmo-aspect-video plasmo-bg-gray-700 plasmo-rounded-md plasmo-flex plasmo-items-center plasmo-justify-center plasmo-mb-4">
-                <iframe
-                  src="https://www.youtube-nocookie.com/embed/t02BFsNE-Ac??rel=0&iv_load_policy=3&modestbranding=1&showinfo=0&controls=0"
-                  title="YouTube video player"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  className="plasmo-w-full plasmo-h-full plasmo-rounded-md"
-                ></iframe>
+                <div className="relative">
+                  <iframe
+                  src="https://player.vimeo.com/video/1059208124?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479"
+                  allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media"
+                  className="absolute top-0 left-0 w-full h-full"
+                  title="Safire in Action"
+                  ></iframe>
+                </div>
+                <script src="https://player.vimeo.com/api/player.js"></script>
               </div>
             </div>
 

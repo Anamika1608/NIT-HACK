@@ -12,7 +12,7 @@ let areMessagesHidden = true
 
 
 
-const initializeMessaging = async () => {
+export const initializeMessaging = async () => {
   try {
     const token = await getToken();
     if (!token) {
@@ -242,7 +242,7 @@ const ContentScript = () => {
         // }
 
         if (window.location.href.includes("/messaging")) {
-          initMessageDetection(userId);
+          initMessageDetection();
         }
       } catch (error) {
         console.error("Error in setupMessageDetection:", error);

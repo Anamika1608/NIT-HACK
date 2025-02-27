@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User, ExternalLink, Loader2, MessageSquare, X } from 'lucide-react';
 import { isAuthenticated, getToken } from '../../utils/auth';
 import { useNavigation } from '../popupui';
+import capitalizeWords from '../../utils/capitalizeWords';
 
 // Updated interfaces to match the new payload structure
 interface HiddenUserStatistics {
@@ -207,7 +208,6 @@ const BlockedPage = () => {
     );
   }
 
-  // Render user details modal
   const renderUserDetailsModal = () => {
     if (!selectedUser) return null;
 
@@ -221,7 +221,6 @@ const BlockedPage = () => {
             <X className="plasmo-w-6 plasmo-h-6" />
           </button>
 
-          {/* User Profile Header */}
           <div className="plasmo-flex plasmo-items-center plasmo-gap-4 plasmo-mb-6">
             <div 
               className="plasmo-w-16 plasmo-h-16 plasmo-rounded-full plasmo-overflow-hidden plasmo-bg-gray-700 plasmo-flex plasmo-items-center plasmo-justify-center"
@@ -241,15 +240,14 @@ const BlockedPage = () => {
             
             <div>
               <h2 className="plasmo-text-xl plasmo-font-semibold plasmo-text-white">
-                {selectedUser.name}
+                {capitalizeWords(selectedUser.name)}
               </h2>
               <p className="plasmo-text-sm plasmo-text-gray-400">
-                Platform: {selectedUser.platform}
+                Platform: {capitalizeWords(selectedUser.platform)}
               </p>
             </div>
           </div>
 
-          {/* User Statistics */}
           <div className="plasmo-grid plasmo-grid-cols-2 plasmo-gap-4 plasmo-mb-6">
             <div className="plasmo-bg-gray-800 plasmo-p-4 plasmo-rounded-lg">
               <div className="plasmo-text-sm plasmo-text-gray-400">Total Messages Hidden</div>
@@ -267,7 +265,6 @@ const BlockedPage = () => {
             </div>
           </div>
 
-          {/* Recent Hidden Messages */}
           <div>
             <h3 className="plasmo-text-lg plasmo-font-semibold plasmo-mb-4">Recent Hidden Messages</h3>
             {userMessagesLoading ? (
@@ -302,7 +299,6 @@ const BlockedPage = () => {
     );
   };
 
-  // Main render (similar to previous version, with minor type adjustments)
   return (
     <div className="plasmo-p-4" style={{ userSelect: 'none' }}>
       {renderUserDetailsModal()}
@@ -369,13 +365,13 @@ const BlockedPage = () => {
                     onClick={() => openUserDetails(user)}
                     className="plasmo-font-medium plasmo-mb-1 plasmo-text-blue-500 plasmo-hover:underline plasmo-cursor-pointer"
                   >
-                    {user.name}
+                    {capitalizeWords(user.name)}
                   </a>
                   <div className="plasmo-flex plasmo-items-center plasmo-gap-2 plasmo-text-sm plasmo-text-gray-400">
                     <MessageSquare className="plasmo-w-4 plasmo-h-4" />
                     <span>{user.statistics.totalMessagesHidden || 0} messages hidden</span>
                   </div>
-                  <div className="plasmo-text-xs plasmo-text-gray-500">Platform: {user.platform}</div>
+                  <div className="plasmo-text-xs plasmo-text-gray-500">Platform: {capitalizeWords(user.platform)}</div>
                 </div>
               </div>
 

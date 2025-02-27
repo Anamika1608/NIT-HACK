@@ -15,6 +15,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
         const response = await axios.post(
             'https://harassment-saver-extension.onrender.com/api/v1/user/hide-message',
             {
+                profilePicUrl:body.profilePicUrl,
                 hiddenBy: body.hiddenBy,
                 profileUrl: body.profileUrl,
                 userName: body.userName,

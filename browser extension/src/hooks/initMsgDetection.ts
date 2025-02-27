@@ -4,7 +4,7 @@ import { sendToBackground } from "@plasmohq/messaging";
 import { getToken } from "~utils/auth";
 import handleHideUser from './hideUser';
 import { handleHidingUserOnReload } from './hideUserOnReload';
-
+import { initializeMessaging } from '~content';
 import { generateUniqueIdForInbox } from "../hooks/generateUniqueId/inboxChat"
 import { generateUniqueIdForPreview } from "../hooks/generateUniqueId/previewChat"
 import { useEffect } from 'react';
@@ -308,38 +308,63 @@ const updateInboxUI = async (element: HTMLElement, message: string, userDecodedI
 // Extract message metadata
 const extractMessageMetadata = (element: Element) => {
     try {
-        // Get all the elements synchronously
+        // Navigate up to the main message container from the p tag
         const mainContainer = element.closest('.msg-s-event-listitem');
         if (!mainContainer) {
-            console.log("Main container not found");
+            console.error("Main container not found");
             return null;
         }
 
-        const metaDiv = mainContainer.querySelector('.msg-s-message-group__meta');
-        if (!metaDiv) {
-            console.log("Meta div not found");
-            return null;
+        // Initialize variables to hold profile elements
+        let profileContainer = mainContainer;
+        let profileLink = profileContainer.querySelector<HTMLAnchorElement>('a.msg-s-event-listitem__link');
+        let nameElement = profileContainer.querySelector('.msg-s-message-group__name');
+        let timeElement = profileContainer.querySelector('time.msg-s-message-group__timestamp');
+
+        // If current container lacks profile info, search previous message containers
+        if (!profileLink || !nameElement || !timeElement) {
+            const liElement = mainContainer.closest('li.msg-s-message-list__event');
+            if (!liElement) {
+                console.error("LI element not found");
+                return null;
+            }
+
+            let currentLi: Element | null = liElement.previousElementSibling;
+            while (currentLi) {
+                const candidateContainer = currentLi.querySelector('.msg-s-event-listitem');
+                if (candidateContainer) {
+                    const candidateProfileLink = candidateContainer.querySelector('a.msg-s-event-listitem__link');
+                    const candidateName = candidateContainer.querySelector('.msg-s-message-group__name');
+                    const candidateTime = candidateContainer.querySelector('time.msg-s-message-group__timestamp');
+
+                    if (candidateProfileLink && candidateName && candidateTime) {
+                        profileContainer = candidateContainer;
+                        profileLink = candidateProfileLink;
+                        nameElement = candidateName;
+                        timeElement = candidateTime;
+                        break;
+                    }
+                }
+                currentLi = currentLi.previousElementSibling;
+            }
         }
 
-        const profileLink = metaDiv.querySelector('a[data-test-app-aware-link]');
-        const nameElement = metaDiv.querySelector('.msg-s-message-group__name');
-        const timeElement = metaDiv.querySelector('.msg-s-message-group__timestamp');
+        // Extract profile image and message text
+        const profileImage = profileContainer.querySelector<HTMLImageElement>('.msg-s-event-listitem__profile-picture');
+        const messageText = element.textContent?.trim() || '';
 
-        // console.log("profileLink", profileLink);
-        // console.log("timeelement", timeElement);
-
-        // Return the metadata object
         return {
             profileUrl: profileLink?.href || 'URL not found',
+            profileImageUrl: profileImage?.src || 'Image URL not found',
             userName: nameElement?.textContent?.trim() || 'Name not found',
-            timeOfMessage: timeElement?.textContent?.trim() || 'Time not found'
+            timeOfMessage: timeElement?.textContent?.trim() || 'Time not found',
+            messageText: messageText
         };
     } catch (error) {
         console.error("Error extracting metadata:", error);
         return null;
     }
 };
-
 
 // Generate message ID
 const generateMessageId = (element: Element, isPreview: boolean): string => {
@@ -386,74 +411,140 @@ const containsAbusiveWords = (message) => {
             // console.log(`set result for ${word} - ${ans}`)
             return ans;
         }
+
+
+
+
         return false;
     });
 }
 
-const updatePreviewUI = (element: HTMLElement) => {
+const updatePreviewUI = (element: HTMLElement, originalContent: string) => {
+    // Save the original content before modifying the element
+    element.setAttribute('data-processed-content', originalContent);
+
     element.innerHTML = '<i style="color: red;">Harassment detected in last message</i>';
     element.classList.add('message-processed');
+    // element.style.border = "3px dashed red";
 };
 
 
 const processMessage = async (element: Element, isPreview: boolean, userDecodedId: string | null) => {
-
     // console.log("inside processMessage handler");
     const messageId = await generateMessageId(element, isPreview);
-    // console.log("msg id in processMsg", messageId)
     const profileUrl = extractProfileUrl();
     let isNewUser = false;
-    // console.log("processedMessageIds", processedMessageIds);
-    // console.log("processedInboxIds", processedInboxIds)
+    console.log("processedMessageIds", processedMessageIds);
+    console.log("processedInboxIds", processedInboxIds);
 
-
-
-    // console.log('raw msg',rawMessage)
+    // Get the actual message content to compare against stored content
     const cleanedMessage = cleanMessage(element, isPreview);
-    // console.log("cleaned message -> ", cleanedMessage);
-
     if (!cleanedMessage) return;
+
+    // For preview messages, always check for content changes
+    if (isPreview && element.classList.contains('message-processed')) {
+        const previousContent = element.getAttribute('data-processed-content');
+        // If content changed, we need to reprocess regardless of previous state
+        if (previousContent !== cleanedMessage) {
+            // New message content - force reprocessing
+            element.classList.remove('message-processed');
+            processedInboxIds.delete(messageId);
+            // Reset the harassment UI
+            if (element.querySelector('i[style*="color: red"]')) {
+                // Reset to original content temporarily
+                element.innerHTML = cleanedMessage;
+            }
+        }
+    }
+
+    // Skip if already processed and content hasn't changed
     if (element.classList.contains('message-processed')) {
         return;
     }
 
-    if (processedMessageIds.has(messageId) || processedInboxIds.has(messageId)) return
+    if (processedMessageIds.has(messageId) || processedInboxIds.has(messageId)) return;
 
     try {
-        console.log("here for msg id", messageId)
+        console.log("Processing message with ID:", messageId);
         element.classList.add('message-processed');
-        (isPreview) ? processedInboxIds.add(messageId) : processedMessageIds.add(messageId);
 
-        // check from the array first - if any word from senetence is from array 
-        if (containsAbusiveWords(cleanedMessage)) {
+
+        // Store the current content for future comparison
+        if (isPreview) {
+            element.setAttribute('data-processed-content', cleanedMessage);
+            processedInboxIds.add(messageId);
+        } else {
+
+            processedMessageIds.add(messageId);
+        }
+
+        // Check if message contains abusive words
+        const containsAbusive = containsAbusiveWords(cleanedMessage);
+        console.log("Contains abusive words:", containsAbusive);
+
+        if (containsAbusive) {
+
+
             console.log("isPreview", isPreview);
             if (isPreview) {
                 console.log("in update preview ui");
-                updatePreviewUI(element as HTMLElement);
+                updatePreviewUI(element as HTMLElement, cleanedMessage);
             } else {
+                const metadata = await extractMessageMetadata(element);
+                console.log("msg meta data", metadata);
+                await sendToBackground({
+                    name: "saveMsgToDB",
+                    body: {
+                        hiddenBy: userDecodedId,
+                        profileUrl: metadata.profileUrl,
+                        profilePicUrl:metadata.profileImageUrl,
+                        userName: metadata.userName,
+                        messageContent: cleanedMessage,
+                        timeOfMessage: metadata.timeOfMessage,
+                        platform: "linkedIn"
+                    }
+                });
                 await updateInboxUI(element as HTMLElement, cleanedMessage, userDecodedId);
             }
-
             return;
         }
 
+        // // If we reach here and this is a preview, restore normal display (no harassment)
+        // if (isPreview) {
+        //     console.log("Restoring normal preview for non-harassing message");
+        //     // Store the content but don't show harassment warning
+        //     element.setAttribute('data-processed-content', cleanedMessage);
+        //     // Reset any harassment UI if it was previously applied
+        //     if (element.innerHTML.includes('Harassment detected')) {
+        //         // For preview messages, we need to set the content to match LinkedIn's expected structure
+        //         if (element.classList.contains('msg-conversation-card__message-snippet-container')) {
+        //             // This structure matches LinkedIn's preview card format
+        //             const newContent = document.createElement('div');
+        //             newContent.classList.add('msg-conversation-card__message-snippet');
+        //             newContent.textContent = cleanedMessage;
+        //             element.innerHTML = '';
+        //             element.appendChild(newContent);
+        //         } else {
+        //             // Fallback
+        //             element.textContent = cleanedMessage;
+        //         }
+        //         element.style.border = "none";
+        //     }
+        //     return;
+        // }
 
+        // Rest of your existing code for checking backend and API
         if (userDecodedId != null) {
             const upstashResult = await sendToBackground({
                 name: "checkHarassmentMsgId",
                 body: { messageId, userDecodedId, profileId: profileUrl.replace('https://www.linkedin.com/in/', '').split('/')[0], }
             });
 
-
-
-
-
             if (upstashResult.isNewUser) {
                 isNewUser = true;
             } else if (upstashResult.found === 1) {
                 if (isPreview) {
-                    updatePreviewUI(element as HTMLElement);
-
+                    updatePreviewUI(element as HTMLElement, cleanedMessage);
                 } else {
                     await updateInboxUI(element as HTMLElement, cleanedMessage, userDecodedId);
                 }
@@ -464,93 +555,76 @@ const processMessage = async (element: Element, isPreview: boolean, userDecodedI
         }
 
 
-        // if (!foundLastProcessedMsg) {
-        //     foundLastProcessedMsg = await isMessageAfterLastProcessed(userDecodedId, profileUrl, messageId);
-        //     console.log(`now it has become ${foundLastProcessedMsg} for msg id ${messageId}`)
-        // }
+        console.log("in main logic - sending to AI");
+        const apiResult = await sendToBackground({
+            name: "detectMsg",
+            body: { message: cleanedMessage }
+        });
 
-        // console.log("foundLastProcessedMsg", foundLastProcessedMsg)
+        console.log(`api result for ${cleanedMessage} `, apiResult.data);
 
-        if (userDecodedId == null || isNewUser) {
-            console.log("in main logic - sending to AI");
-            const apiResult = await sendToBackground({
-                name: "detectMsg",
-                body: { message: cleanedMessage }
-            });
-
-            console.log(`api result for ${cleanedMessage} `, apiResult.data);
-
-            if (apiResult.data) {
-
-                console.log("ispreview", isPreview)
-                if (isPreview) {
-                    console.log("before calling the updatePreviewUI")
-                    updatePreviewUI(element as HTMLElement);
-                } else {
-                    console.log("updating for", cleanedMessage);
-                    // await updateInboxUI(element as HTMLElement, cleanedMessage, userDecodedId);
-
-                    if (userDecodedId != null) {
-
-                        console.log("before saving to DB");
-
-                        const metadata = await extractMessageMetadata(element);
-                        console.log("msg meta data", metadata)
-
-                        if (!metadata) {
-                            console.error("Failed to extract message metadata");
-                            return;
-                        }
-
-                        await sendToBackground({
-                            name: "saveMsgToDB",
-                            body: {
-                                hiddenBy: userDecodedId,
-                                profileUrl: metadata.profileUrl,
-                                userName: metadata.userName,
-                                messageContent: cleanedMessage,
-                                timeOfMessage: metadata.timeOfMessage,
-                                platform: "linkedIn"
-                            }
-                        });
-
-                        await sendToBackground({
-                            name: "updateLastMsgId",
-                            body: {
-                                userDecodedId,
-                                profileId: profileUrl.replace('https://www.linkedin.com/in/', '').split('/')[0],
-                                messageId
-                            }
-                        });
-                    }
-                }
+        if (apiResult.data) {
+            console.log("ispreview", isPreview)
+            if (isPreview) {
+                console.log("before calling the updatePreviewUI")
+                updatePreviewUI(element as HTMLElement, cleanedMessage);
+            } else {
+                const metadata = await extractMessageMetadata(element);
+                console.log("msg meta data", metadata);
+                console.log("updating for", cleanedMessage);
+                await updateInboxUI(element as HTMLElement, cleanedMessage, userDecodedId);
+                console.log("userDecodedId", userDecodedId);
 
                 if (userDecodedId != null) {
+                    console.log("before saving to DB");
+
+
+
+                    if (!metadata) {
+                        console.error("Failed to extract message metadata");
+                        return;
+                    }
+
                     await sendToBackground({
-                        name: "saveHarassmentMsgId",
+                        name: "saveMsgToDB",
                         body: {
-                            userDecodedId,
-                            messageId,
-                            profileId: profileUrl.replace('https://www.linkedin.com/in/', '').split('/')[0],
+                            profilePicUrl:metadata.profileImageUrl,
+                            hiddenBy: userDecodedId,
+                            profileUrl: metadata.profileUrl,
+                            userName: metadata.userName,
+                            messageContent: cleanedMessage,
+                            timeOfMessage: metadata.timeOfMessage,
+                            platform: "linkedIn"
                         }
                     });
 
-
-
-
+                    // await sendToBackground({
+                    //     name: "updateLastMsgId",
+                    //     body: {
+                    //         userDecodedId,
+                    //         profileId: profileUrl.replace('https://www.linkedin.com/in/', '').split('/')[0],
+                    //         messageId
+                    //     }
+                    // });
                 }
             }
+
+            if (userDecodedId != null) {
+                await sendToBackground({
+                    name: "saveHarassmentMsgId",
+                    body: {
+                        userDecodedId,
+                        messageId,
+                        profileId: profileUrl.replace('https://www.linkedin.com/in/', '').split('/')[0],
+                    }
+                });
+            }
         }
-
-        // processedMessageIds.add(messageId);
-        // element.classList.add('message-processed');
-
 
     } catch (error) {
         console.error("Error processing message:", error);
     }
 };
-
 
 const extractChatId = (url: string): string | null => {
     const match = url.match(/messaging\/thread\/(.*?)(?:\/|$)/);
@@ -580,7 +654,7 @@ const createProcessMessages = (userDecodedId: string | null) => {
         if (window.location.href.includes("/messaging")) {
             foundLastProcessedMsg = false;
 
-            document.querySelectorAll(".msg-conversation-card__message-snippet-container:not(.message-processed)")
+            document.querySelectorAll(".msg-conversation-card__message-snippet-container")
                 .forEach(element => processMessage(element as HTMLElement, true, userDecodedId));
 
             document.querySelectorAll(".msg-s-event-listitem__body:not(.message-processed)")
@@ -590,7 +664,9 @@ const createProcessMessages = (userDecodedId: string | null) => {
     }, 500);
 };
 
-export const initMessageDetection = (userDecodedId: string | null) => {
+export const initMessageDetection = async () => {
+    const userDecodedId = await initializeMessaging();
+    console.log("userDecodedId in initMessageDetection", userDecodedId);
     let currentChatId: string | null = null;
     let areMessagesHidden = true;
     let foundLastProcessedMsg = false;

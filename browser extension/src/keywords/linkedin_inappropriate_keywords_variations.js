@@ -1,6 +1,7 @@
 const abusiveWords = [
     "kiss",
     "Bitch",
+    "bitch",
     "nigga",
     "Stupid",
     "stupidity",
@@ -26,8 +27,6 @@ const abusiveWords = [
     "hotyy",
     "babe",
     "babe",
-    "BABE",
-    "Babe",
     "babeee",
     "babeee",
     "babeyy",
@@ -45,8 +44,6 @@ const abusiveWords = [
     "sweethearttt",
     "sweethearttt",
     "sweetheartyy",
-
- 
     "darling",
     "darling",
     "DARLING",
@@ -54,10 +51,6 @@ const abusiveWords = [
     "darlinggg",
     "darlinggg",
     "darlingyy",
-
-
-    
-   
     "sugar",
     "sugar",
     "SUGAR",
@@ -134,28 +127,6 @@ const abusiveWords = [
     "Flirt",
     "flirttt",
     "flirttt",
-    "flirtyy",
-    "sizzling",
-    "sizzling",
-    "SIZZLING",
-    "Sizzling",
-    "sizzlinggg",
-    "sizzlinggg",
-    "sizzlingyy",
-    "yummy",
-    "yummy",
-    "YUMMY",
-    "Yummy",
-    "yummyyy",
-    "yummyyy",
-    "yummyyy",
-    "delicious",
-    "delicious",
-    "DELICIOUS",
-    "Delicious",
-    "deliciousss",
-    "deliciousss",
-    "deliciousyy",
     "foxy",
     "foxy",
     "FOXY",
@@ -177,9 +148,6 @@ const abusiveWords = [
     "dollll",
     "dollll",
     "dollyy",
-    
- 
-   
     "hottie",
     "hottie",
     "HOTTIE",
@@ -229,7 +197,6 @@ const abusiveWords = [
     "naughtyyy",
     "naughtyyy",
     "naughtyyy",
-    
     "prince",
     "prince",
     "PRINCE",
@@ -313,26 +280,36 @@ const abusiveWords = [
     "Boo",
     "boooo",
     "boooo",
-    "booyy",
-    "smokin",
-    "smokin",
-    "SMOKIN",
-    "Smokin",
-    "smokinnn",
-    "smokinnn",
-    "smokinyy",
-    "angelic",
-    "angelic",
-    "ANGELIC",
-    "Angelic",
-    "angeliccc",
-    "angeliccc",
-    "angelicyy"
-    
-]
+    "nigger", "faggot", "fag", "dyke", "tranny", "retard",
+    "chink", "kike", "spic", "wetback", "gook", "towelhead",
+    "raghead", "sandnigger", "beaner", "cunt", "paki",
+    "slut", "whore", "cum", "cumslut", "fuckhole", "cocksucker",
+    "twat", "pussy", "dick", "blowjob", "asshole", "fcuk",
+    "jerk", "jerkoff", "jackoff", "wank", "wanker", "fap",
+    "kys", "killyourself", "killurself", "diealready", "gokill",
+    "gohangurself", "shootyou", "rapeyou", "illkill", "illhurt",
+    "stab", "murder", "strangle", "torture", "bash", "smash",
+    "idiot", "moron", "dumbass", "dumbo", "imbecile", "loser",
+    "fool", "pathetic", "worthless", "useless", "failure", "scum",
+    "trash", "garbage", "waste", "disgrace", "ugly", "fatso",
+    "fatty", "disgusting", "gross", "creep", "stalker", "perv",
+    "pervert", "sicko", "psycho", "crazy", "insane", "lunatic",
+    "fuckyou", "fucku", "fku", "motherfucker", "stfu", "gtfo",
+    "shutup", "gofuckyourself", "ihateyou", "youresodumb",
+    "pieceofshit", "pos", "nolife", "kys", "kms",
+    "beautiful", "gorgeous", "cute", "handsome", "pretty",
+    "wifey", "hubby", "girlfriend", "boyfriend", "love",
+    "lover", "crush", "date", "dating", "smooch", "hugs",
+    "kisses", "xoxo", "makeout", "makeoutwith", "sex",
+    "sexting", "sexytime", "naked", "nude", "nudes",
+    "sendnudes", "pics", "sendpics", "snapme",
+    "sexxy", "sexxxy", "sexi", "sexxi", "sexxxi",
+    "hott", "hotttt", "hawt", "hawtt",
+    "babee", "babyy", "babby", "bby",
+    "sweetypie", "sweetiepie", "honeybun", "sugarpie",
+    "foxxy", "foxxxy", "cutiepatootie", "cutiepie",
+    "sweetums", "snuggle", "snuggles", "huggable"
+];
+const abusiveWordsSet = new Set(abusiveWords);
 
-
-export const abusiveWordsSet = new Set(abusiveWords);
-
-// console.log(abusiveWordsSet);
-
+export { abusiveWordsSet };

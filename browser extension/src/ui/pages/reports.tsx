@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FileText, ExternalLink, Loader2, Filter, Share2, AlertTriangle, Eye } from 'lucide-react';
+import { FileText, ExternalLink, Loader2, Filter, Eye, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { isAuthenticated, getToken } from '../../utils/auth';
+import capitalizeWords from '../../utils/capitalizeWords';
 
 const FilterButton = ({ label, active, onClick }) => (
   <button
@@ -20,6 +21,8 @@ const ReportsPage = () => {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // Add a new state to track which report is currently being downloaded
+  const [downloadingReportId, setDownloadingReportId] = useState(null);
   const [filters, setFilters] = useState({
     timeframe: '30',
     platform: 'all',
@@ -29,6 +32,9 @@ const ReportsPage = () => {
 
   const handleViewReport = async (reportId) => {
     try {
+      // Set the downloading state for this specific report
+      setDownloadingReportId(reportId);
+      
       const token = await getToken();
       const response = await fetch(
         `https://harassment-saver-extension.onrender.com/api/v1/user/view-report/${reportId}`,
@@ -40,17 +46,43 @@ const ReportsPage = () => {
       );
 
       if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        chrome.tabs.create({ url: url });
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          
+          if (data.pdfBase64) {
+            const byteCharacters = atob(data.pdfBase64);
+            const byteNumbers = new Array(byteCharacters.length);
+            
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            
+            const byteArray = new Uint8Array(byteNumbers);
+            const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
+            
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            chrome.tabs.create({ url: pdfUrl });
+          } else {
+            toast.error('Invalid PDF data received');
+          }
+        } else {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          chrome.tabs.create({ url: url });
+        }
       } else {
         toast.error('Failed to fetch report PDF');
       }
     } catch (error) {
+      console.error('Error viewing report:', error);
       toast.error('Error viewing report');
+    } finally {
+      // Clear the downloading state regardless of success or failure
+      setDownloadingReportId(null);
     }
   };
-
 
   const fetchReports = async (queryParams = '') => {
     setLoading(true);
@@ -95,28 +127,6 @@ const ReportsPage = () => {
     fetchReports(queryString);
   }, [filters]);
 
-  const handleShareReport = async (reportId) => {
-    try {
-      const token = await getToken();
-      const response = await fetch(
-        `https://harassment-saver-extension.onrender.com/api/v1/reports/${reportId}/share`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-      const data = await response.json();
-      if (data.success) {
-        navigator.clipboard.writeText(data.data.shareUrl);
-        toast.success('Share link copied to clipboard!');
-      }
-    } catch (error) {
-      toast.error('Failed to generate share link');
-    }
-  };
-
   const getSeverityColor = (severity) => {
     const colors = {
       HIGH: 'plasmo-bg-red-500/20 plasmo-text-red-400',
@@ -149,6 +159,7 @@ const ReportsPage = () => {
       </div>
     );
   }
+  
   return (
     <div className="plasmo-w-[320px] plasmo-min-h-[480px] plasmo-bg-gray-900 plasmo-text-white plasmo-overflow-y-auto">
       <div className="plasmo-p-4">
@@ -195,26 +206,6 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        {loading && (
-          <div className="plasmo-flex plasmo-items-center plasmo-justify-center plasmo-h-64">
-            <Loader2 className="plasmo-w-6 plasmo-h-6 plasmo-animate-spin plasmo-text-blue-500" />
-          </div>
-        )}
-
-        {error && (
-          <div className="plasmo-p-4 plasmo-text-center">
-            <div className="plasmo-text-red-400 plasmo-mb-4">{error}</div>
-            {error === 'Please log in to view reports' && (
-              <button
-                onClick={() => chrome.runtime.sendMessage({ action: "initiateLogin" })}
-                className="plasmo-bg-blue-600 plasmo-text-white plasmo-px-4 plasmo-py-2 plasmo-rounded-md hover:plasmo-bg-blue-700 plasmo-transition-colors"
-              >
-                Login
-              </button>
-            )}
-          </div>
-        )}
-
         {!loading && !error && reports.length === 0 && (
           <div className="plasmo-flex plasmo-flex-col plasmo-items-center plasmo-justify-center plasmo-h-64 plasmo-text-gray-400">
             <FileText className="plasmo-w-12 plasmo-h-12 plasmo-mb-4 plasmo-opacity-50" />
@@ -237,24 +228,33 @@ const ReportsPage = () => {
                       className="plasmo-w-8 plasmo-h-8 plasmo-rounded-full"
                     />
                     <div>
-                      <div className="plasmo-font-medium">{report.userName}</div>
-                      <div className="plasmo-text-sm plasmo-text-gray-400">{report.platform}</div>
+                      <div className="plasmo-font-medium plasmo-text-ellipsis">{capitalizeWords(report.userName)}</div>
+                      <div className="plasmo-text-sm plasmo-text-gray-400">{capitalizeWords(report.platform)}</div>
                     </div>
                   </div>
 
-                  <div className="plasmo-flex plasmo-items-center plasmo-gap-2">
+                  <div>
                     <button
                       onClick={() => handleViewReport(report.id)}
-                      className="plasmo-flex plasmo-items-center plasmo-gap-2 plasmo-px-3 plasmo-py-1 plasmo-text-sm plasmo-rounded-md plasmo-bg-blue-500/20 plasmo-text-blue-400 hover:plasmo-bg-blue-500/30 plasmo-transition-colors"
+                      disabled={downloadingReportId !== null}
+                      className={`plasmo-flex plasmo-items-center plasmo-gap-2 plasmo-px-3 plasmo-py-1 plasmo-text-sm plasmo-rounded-md 
+                        ${downloadingReportId === report.id 
+                          ? 'plasmo-bg-blue-500/10 plasmo-text-blue-300' 
+                          : 'plasmo-bg-blue-500/20 plasmo-text-blue-400 hover:plasmo-bg-blue-500/30'
+                        } 
+                        plasmo-transition-colors`}
                     >
-                      <Eye className="plasmo-w-4 plasmo-h-4" />
-                      <span>View PDF</span>
-                    </button>
-                    <button
-                      onClick={() => handleShareReport(report.id)}
-                      className="plasmo-p-2 plasmo-rounded-full hover:plasmo-bg-gray-700 plasmo-transition-colors"
-                    >
-                      <Share2 className="plasmo-w-4 plasmo-h-4 plasmo-text-gray-400" />
+                      {downloadingReportId === report.id ? (
+                        <>
+                          <Loader2 className="plasmo-w-4 plasmo-h-4 plasmo-animate-spin" />
+                          <span>Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="plasmo-w-4 plasmo-h-4" />
+                          <span>View PDF</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -342,6 +342,7 @@ const ReportsPage = () => {
         )}
       </div>
     </div>
-)};
+  );
+};
 
 export default ReportsPage;
